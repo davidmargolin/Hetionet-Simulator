@@ -1,0 +1,5 @@
+cassandra-driver==3.22.0
+click==7.1.1
+geomet==0.1.2
+pkg-resources==0.0.0
+six==1.14.0
