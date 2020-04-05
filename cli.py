@@ -36,26 +36,27 @@ def clear_data():
     click.echo("Done")
 
 @main.command()
-@click.argument('query')
-def get_disease(query):
+@click.argument('disease_id')
+def get_disease(disease_id):
     """
-    MongoDB: Drug names that can treat or palliate this disease, gene names that cause this disease, and where this disease occurs.
+    MongoDB: Disease name, drug names that can treat or palliate this disease, gene names that cause this disease, and where this disease occurs.
     """
-    result = mongo_client.get_disease(query)
+    result = mongo_client.get_disease(disease_id)
     if len(result) > 0:
         click.echo(pprint.pprint(result[0]))
     else:
         click.echo("Disease not found")
 
 @main.command()
-@click.argument('id')
-def drugs_for_new_disease(id):
+@click.argument('disease_id')
+def drugs_for_new_disease(disease_id):
     """
     Neo4j: Find all drugs that can treat a new disease.
     """
-    results = neo4j_client.get_compounds(id)
+    results = neo4j_client.find_missing_compounds(disease_id)
     if len(results) > 0:
-        click.echo(pprint.pprint(results))
+        for drug in results:
+            click.echo(drug["name"])
     else:
         click.echo("Compounds not found")
 

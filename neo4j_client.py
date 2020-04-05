@@ -6,15 +6,17 @@ load_dotenv()
 
 # neo4j connection
 neo4j_driver = GraphDatabase.driver(os.getenv("NEO4J_URL"), auth=(os.getenv("NEO4J_USER"), os.getenv("NEO4J_PASSWORD")), encrypted=False)
-neo4j_data_path = "{}/dataset".format(os.getenv("NEO4J_IMPORT_PATH"))
 
-def get_compounds():
+def find_missing_compounds(disease_id):
     with neo4j_driver.session() as session:
         return session.run(
-                '''
-                
-                ;'''
-        ).single().value()
+            '''MATCH (similar:Compound)-[:RESEMBLES]->(com:Compound)-[:TREATS]->(d:Disease{id:$disease_id})
+            WHERE NOT (similar)-[:TREATS]->(d)
+            and (exists((similar)-[:UPREGULATES]->(:Gene)<-[:DOWNREGULATES]-(:Anatomy)<-[:LOCALIZES]-(d))
+            OR exists((similar)-[:DOWNREGULATES]->(:Gene)<-[:UPREGULATES]-(:Anatomy)<-[:LOCALIZES]-(d)))
+            return (similar);''',
+            disease_id=disease_id
+        ).value()
 
 def reset_data():
     # reset neo4j
@@ -30,8 +32,8 @@ def import_nodes():
         try:
             session.run(
                 '''CREATE CONSTRAINT unique_ids
-                    ON (n:Data)
-                    ASSERT n.id IS UNIQUE;'''
+                ON (n:Data)
+                ASSERT n.id IS UNIQUE;'''
             ).single()
         except:
             pass
@@ -46,25 +48,20 @@ def import_nodes():
         ).single()
 
 def import_edges():
-    shutil.copyfile("dataset/edges.tsv", "{}/edges.tsv".format(os.getenv("NEO4J_IMPORT_PATH")))  
+    shutil.copyfile("dataset/edges.tsv", "{}/edges.tsv".format(os.getenv("NEO4J_IMPORT_PATH")))
     with neo4j_driver.session() as session:
         session.run(
-            '''USING PERIODIC COMMIT
+            '''USING PERIODIC COMMIT 5000
             LOAD CSV WITH HEADERS FROM 'file:///edges.tsv' AS row
             FIELDTERMINATOR '\t'
-            MATCH (s:Data{id: row.source}) 
+            WITH row WHERE row.metaedge IN ["CuG","AuG","CdG","AdG","CrC","CtD","DlA"]
+            MATCH (s:Data{id: row.source})
             MATCH (t:Data{id: row.target})
-            FOREACH(ignoreMe IN CASE WHEN split(row.metaedge,"")[1] = "u" THEN [1] ELSE [] END | MERGE (s)-[:UPREGULATES]->(t))
-            FOREACH(ignoreMe IN CASE WHEN split(row.metaedge,"")[1] = "d" THEN [1] ELSE [] END | MERGE (s)-[:DOWNREGULATES]->(t))
-            FOREACH(ignoreMe IN CASE WHEN split(row.metaedge,"")[1] = "t" THEN [1] ELSE [] END | MERGE (s)-[:TREATS]->(t))
-            FOREACH(ignoreMe IN CASE WHEN split(row.metaedge,"")[1] = "p" THEN [1] ELSE [] END | MERGE (s)-[:PALLIATES]->(t))
-            FOREACH(ignoreMe IN CASE WHEN split(row.metaedge,"")[1] = "b" THEN [1] ELSE [] END | MERGE (s)-[:BINDS]->(t))
-            FOREACH(ignoreMe IN CASE WHEN split(row.metaedge,"")[1] = "l" THEN [1] ELSE [] END | MERGE (s)-[:LOCALIZES]->(t))
-            FOREACH(ignoreMe IN CASE WHEN split(row.metaedge,"")[1] = "a" THEN [1] ELSE [] END | MERGE (s)-[:ASSOCIATES]->(t))
-            FOREACH(ignoreMe IN CASE WHEN split(row.metaedge,"")[1] = "i" THEN [1] ELSE [] END | MERGE (s)-[:INTERACTS]->(t))
-            FOREACH(ignoreMe IN CASE WHEN split(row.metaedge,"")[1] = "c" THEN [1] ELSE [] END | MERGE (s)-[:COVARIES]->(t))
-            FOREACH(ignoreMe IN CASE WHEN split(row.metaedge,"")[1] = "e" THEN [1] ELSE [] END | MERGE (s)-[:EXPRESSES]->(t))
+            FOREACH(ignoreMe IN CASE WHEN row.metaedge = "CuG" THEN [1] ELSE [] END | MERGE (s)-[:UPREGULATES]->(t))
+            FOREACH(ignoreMe IN CASE WHEN row.metaedge = "AuG" THEN [1] ELSE [] END | MERGE (s)-[:UPREGULATES]->(t))
+            FOREACH(ignoreMe IN CASE WHEN row.metaedge = "CdG" THEN [1] ELSE [] END | MERGE (s)-[:DOWNREGULATES]->(t))
+            FOREACH(ignoreMe IN CASE WHEN row.metaedge = "AdG" THEN [1] ELSE [] END | MERGE (s)-[:DOWNREGULATES]->(t))
             FOREACH(ignoreMe IN CASE WHEN row.metaedge = "CrC" THEN [1] ELSE [] END | MERGE (s)-[:RESEMBLES]->(t))
-            FOREACH(ignoreMe IN CASE WHEN row.metaedge = "Gr>G" THEN [1] ELSE [] END | MERGE (s)-[:REGULATES]->(t))
-            FOREACH(ignoreMe IN CASE WHEN row.metaedge = "DrD" THEN [1] ELSE [] END | MERGE (s)-[:RESEMBLES]->(t));'''
+            FOREACH(ignoreMe IN CASE WHEN row.metaedge = "CtD" THEN [1] ELSE [] END | MERGE (s)-[:TREATS]->(t))
+            FOREACH(ignoreMe IN CASE WHEN row.metaedge = "DlA" THEN [1] ELSE [] END | MERGE (s)-[:LOCALIZES]->(t));'''
         ).single()

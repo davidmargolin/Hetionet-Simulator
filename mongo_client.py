@@ -4,7 +4,6 @@ from pymongo import UpdateOne, MongoClient
 from dotenv import load_dotenv
 load_dotenv()
 
-
 # mongodb connection
 mongo_driver = MongoClient(os.getenv("MONGO_CONNECTION_STRING"))
 hetio_db = mongo_driver.get_database(os.getenv("MONGO_DB_NAME"))
@@ -60,59 +59,43 @@ def import_nodes():
             if len(parsed_rows[collection]) > 0:
                 hetio_db[collection].insert_many(parsed_rows[collection])
 
+def generate_update(edge, source, target):
+    if edge == "CpD":
+        return UpdateOne({ "id" : target }, {'$push': {'palliates_ids': source }})
+    elif edge == "CtD":
+        return UpdateOne({ "id" : target }, {'$push': {'treats_ids': source }})
+    elif edge == "DlA":
+        return UpdateOne({ "id" : source }, {'$push': {'localizes_ids': target }})
+    elif edge == "DuG":
+        return UpdateOne({ "id" : source }, {'$push': {'upregulates_ids': target }})
+    elif edge == "DdG":
+        return UpdateOne({ "id" : source }, {'$push': {'downregulates_ids': target }})
+    elif edge == "DaG":
+        return UpdateOne({ "id" : source }, {'$push': {'associates_ids': target }})
+
 def import_edges():
     with open("dataset/edges.tsv") as tsvfile:
         reader = csv.DictReader(tsvfile, dialect='excel-tab')
         parsed_rows = {
-            "CpD":{
-                "gen_update":lambda source, target: parsed_rows["CpD"]["updates"].append(
-                    UpdateOne({ "id" : target }, {'$push': {'palliates_ids': source }})
-                ),
-                "updates":[]
-            },
-            "CtD":{
-                "gen_update":lambda source, target: parsed_rows["CtD"]["updates"].append(
-                    UpdateOne({ "id" : target }, {'$push': {'treats_ids': source }})
-                ),
-                "updates":[]
-            },
-            "DlA":{
-                "gen_update":lambda source, target: parsed_rows["DlA"]["updates"].append(
-                    UpdateOne({ "id" : source }, {'$push': {'localizes_ids': target }})
-                ),
-                "updates":[]
-            },
-            "DuG":{
-                "gen_update":lambda source, target: parsed_rows["DuG"]["updates"].append(
-                    UpdateOne({ "id" : source }, {'$push': {'upregulates_ids': target }})
-                ),
-                "updates":[]
-            },
-            "DdG":{
-                "gen_update":lambda source, target: parsed_rows["DdG"]["updates"].append(
-                    UpdateOne({ "id" : source }, {'$push': {'downregulates_ids': target }})
-                ),
-                "updates":[]
-            },
-            "DaG":{
-                "gen_update":lambda source, target: parsed_rows["DaG"]["updates"].append(
-                    UpdateOne({ "id" : source }, {'$push': {'associates_ids': target }})
-                ),
-                "updates":[]
-            },
+            "CpD":[],
+            "CtD":[],
+            "DlA":[],
+            "DuG":[],
+            "DdG":[],
+            "DaG":[]
         }
         row_count = 0
         for row in reader:
             edge = row["metaedge"]
             if edge in parsed_rows:
-                parsed_rows[edge]["gen_update"](row["source"], row["target"])
+                parsed_rows[edge].append(generate_update(edge, row["source"], row["target"]))
                 row_count+=1
             if row_count == 10000:
                 for edge in parsed_rows:
-                    if len(parsed_rows[edge]["updates"]) > 0:
-                        hetio_db["diseases"].bulk_write(parsed_rows[edge]["updates"])
-                        parsed_rows[edge]["updates"] = []
+                    if len(parsed_rows[edge]) > 0:
+                        hetio_db["diseases"].bulk_write(parsed_rows[edge])
+                        parsed_rows[edge] = []
                 row_count = 0
         for edge in parsed_rows:
-            if len(parsed_rows[edge]["updates"]) > 0:
-                hetio_db["diseases"].bulk_write(parsed_rows[edge]["updates"])
+            if len(parsed_rows[edge]) > 0:
+                hetio_db["diseases"].bulk_write(parsed_rows[edge])
