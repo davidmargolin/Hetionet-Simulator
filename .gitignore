@@ -4,3 +4,4 @@ dataset/
 dataset/
 dataset_cleaned/
 .env
+__pycache__/
