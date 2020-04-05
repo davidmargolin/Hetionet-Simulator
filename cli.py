@@ -1,16 +1,22 @@
 import click
-import csv
-from dotenv import load_dotenv
-from neo4j import GraphDatabase
 import os
 import shutil
+import csv
+from neo4j import GraphDatabase
+from pymongo import MongoClient
+from dotenv import load_dotenv
 load_dotenv()
 
 # neo4j connection
 neo4j_driver = GraphDatabase.driver(os.getenv("NEO4J_URL"), auth=(os.getenv("NEO4J_USER"), os.getenv("NEO4J_PASSWORD")), encrypted=False)
 neo4j_data_path = "{}/dataset".format(os.getenv("NEO4J_IMPORT_PATH"))
 
+# mongodb connection
+mongo_driver = MongoClient(os.getenv("MONGO_CONNECTION_STRING"))
+hetio_db = mongo_driver[os.getenv("MONGO_DB_NAME")]
+
 def reset_data():
+    # reset neo4j
     with neo4j_driver.session() as session:
         session.run(
             '''MATCH (n)
@@ -26,8 +32,12 @@ def reset_data():
         shutil.rmtree(neo4j_data_path)
     os.mkdir(neo4j_data_path)
 
+    # reset mongodb
+    if "diseases" in hetio_db.list_collection_names():
+        hetio_db.drop_collection("diseases")
+    hetio_db.create_collection("diseases")
+
 def import_nodes():
-    # create cleaned dataset
     shutil.copyfile("dataset/nodes.tsv", "{}/nodes.tsv".format(neo4j_data_path))  
     with neo4j_driver.session() as session:
         session.run(
@@ -100,7 +110,7 @@ def get_disease(query):
 @click.argument('id')
 def drugs_for_new_disease(id):
     """
-    Cassandra: Find all drugs that can treat a new disease.
+    Neo4j: Find all drugs that can treat a new disease.
     """
     click.echo(id)
 
