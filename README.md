@@ -5,6 +5,7 @@ This project seeks to create database infrastructure to model HetioNet. Two diff
     Database Used: MongoDB
 
     Design Diagram:
+    ![Mongo Diagram](/diagrams/mongo.png)
 
     Query:
     ```
@@ -50,6 +51,7 @@ This project seeks to create database infrastructure to model HetioNet. Two diff
     Database Used: Neo4j
 
     Design Diagram:
+    ![Neo4j Diagram](/diagrams/neo4j.png)
 
     Query:
     ```
