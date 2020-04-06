@@ -61,7 +61,7 @@ def import_edges():
             FOREACH(ignoreMe IN CASE WHEN row.metaedge = "AuG" THEN [1] ELSE [] END | MERGE (s)-[:UPREGULATES]->(t))
             FOREACH(ignoreMe IN CASE WHEN row.metaedge = "CdG" THEN [1] ELSE [] END | MERGE (s)-[:DOWNREGULATES]->(t))
             FOREACH(ignoreMe IN CASE WHEN row.metaedge = "AdG" THEN [1] ELSE [] END | MERGE (s)-[:DOWNREGULATES]->(t))
-            FOREACH(ignoreMe IN CASE WHEN row.metaedge = "CrC" THEN [1] ELSE [] END | MERGE (s)-[:RESEMBLES]->(t))
+            FOREACH(ignoreMe IN CASE WHEN row.metaedge = "CrC" THEN [1] ELSE [] END | MERGE (s)<-[:RESEMBLES]->(t))
             FOREACH(ignoreMe IN CASE WHEN row.metaedge = "CtD" THEN [1] ELSE [] END | MERGE (s)-[:TREATS]->(t))
             FOREACH(ignoreMe IN CASE WHEN row.metaedge = "DlA" THEN [1] ELSE [] END | MERGE (s)-[:LOCALIZES]->(t));'''
         ).single()
