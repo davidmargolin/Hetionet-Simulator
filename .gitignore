@@ -1,7 +1,5 @@
 venv/
-dataset/
 .vscode/
-dataset/
 dataset_cleaned/
 .env
 __pycache__/
